@@ -14,7 +14,6 @@ app = FastAPI()
 class Item(BaseModel):
     name: str
     year: int
-    # selling_price: int
     km_driven: int
     fuel: str
     seller_type: str
@@ -26,15 +25,12 @@ class Item(BaseModel):
     torque: str
     seats: float
 
-
 class Items(BaseModel):
     objects: List[Item]
-
 
 app = FastAPI()
 
 PATH = 'pipeline.pkl'
-
 
 def load_pipeline() -> Pipeline:
     try:
@@ -43,12 +39,10 @@ def load_pipeline() -> Pipeline:
     except Exception as e:
         raise RuntimeError(f"Ошибка загрузки модели: {str(e)}")
 
-
 def extract_name(row):
     row['brand'] = " ".join(row['name'].split()[:1])
     row['model'] = " ".join(row['name'].split()[1:2])
     return row
-
 
 def make_new_features(df):
     df['mileage'] = pd.to_numeric(df['mileage'].str.extract(r'([\d.]+)')[0], errors='coerce')
@@ -56,7 +50,7 @@ def make_new_features(df):
     df['max_power'] = pd.to_numeric(df['max_power'].str.extract(r'(\d+)')[0], errors='coerce')
     df = df.apply(extract_name, axis=1).drop(columns=['name'])
     df = df.apply(extract_torque, axis=1)
-    return df.fillna(0)  # Заполняем пропущенные значения нулями
+    return df.fillna(0) 
 
 def extract_torque(row):
   if pd.notnull(row['torque']):
@@ -80,26 +74,7 @@ def extract_torque(row):
   row['max_torque_rpm'] = max_rpm
   return row
 
-
 def predict_price(features: dict) -> float:
-    # feature_values = [
-    #       [
-    #           features["name"],
-    #           features["year"],
-    #           features["km_driven"],
-    #           features["fuel"],
-    #           features["seller_type"],
-    #           features["transmission"],
-    #           features["owner"],
-    #           features["mileage"],
-    #           features["engine"],
-    #           features["max_power"],
-    #           features["torque"],
-    #           features["seats"]
-    #       ]
-    #   ]
-    # column_names = [key for key in features.keys()]
-    # df = pd.DataFrame(feature_values, columns=column_names)
     df = pd.DataFrame([features])
 
     df = make_new_features(df)
@@ -110,17 +85,15 @@ def predict_price(features: dict) -> float:
 
     return float(prediction)
 
-
 @app.post("/predict_item")
 def predict_item(item_data: dict) -> float:
     try:
-        item = Item(**item_data)  # Проверяем валидность данных через Pydantic
+        item = Item(**item_data)
         prediction = predict_price(item.dict())
         return prediction
     except Exception as e:
         print(f"Ошибка предсказания: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/predict_items")
 async def predict_items(file: UploadFile):
@@ -152,24 +125,5 @@ async def predict_items(file: UploadFile):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-# if __name__ == "__main__":
-#     item_data = {
-#         "name": "Mahindra Xylo E4 BS IV",
-#         "year": 2010,
-#         "km_driven": 168000,
-#         "fuel": "Diesel",
-#         "seller_type": "Individual",
-#         "transmission": "Manual",
-#         "owner": "First Owner",
-#         "mileage": "14.0 kmpl",
-#         "engine": "2498 CC",
-#         "max_power": "112 bhp",
-#         "torque": "260 Nm at 1800-2200 rpm",
-#         "seats": 7.0
-#     }
-#     prediction = predict_item(item_data)
-#     print(prediction)
